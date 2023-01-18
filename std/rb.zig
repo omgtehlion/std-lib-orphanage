@@ -6,7 +6,7 @@
 const std = @import("std");
 const assert = std.debug.assert;
 const testing = std.testing;
-const Order = std.math.Order;
+pub const Order = std.math.Order;
 
 const Color = enum(u1) {
     Black,
@@ -137,10 +137,10 @@ pub const Node = struct {
 
 pub const Tree = struct {
     root: ?*Node,
-    compareFn: fn (*Node, *Node, *Tree) Order,
+    compareFn: *const fn (*Node, *Node, *Tree) Order,
 
     /// Re-sorts a tree with a new compare function
-    pub fn sort(tree: *Tree, newCompareFn: fn (*Node, *Node, *Tree) Order) SortError!void {
+    pub fn sort(tree: *Tree, comptime newCompareFn: fn (*Node, *Node, *Tree) Order) SortError!void {
         var newTree = Tree.init(newCompareFn);
         var node: *Node = undefined;
         while (true) {
@@ -198,13 +198,13 @@ pub const Tree = struct {
             tree.root = node;
         }
 
-        while (node.getParent()) |*parent| {
+        while (node.getParent()) |parent| {
             if (parent.*.isBlack())
                 break;
             // the root is always black
             var grandpa = parent.*.getParent() orelse unreachable;
 
-            if (parent.* == grandpa.left) {
+            if (parent == grandpa.left) {
                 var maybe_uncle = grandpa.right;
 
                 if (maybe_uncle) |uncle| {
@@ -217,9 +217,9 @@ pub const Tree = struct {
                     node = grandpa;
                 } else {
                     if (node == parent.*.right) {
-                        rotateLeft(parent.*, tree);
-                        node = parent.*;
-                        parent.* = node.getParent().?; // Just rotated
+                        rotateLeft(parent, tree);
+                        node = parent;
+                        parent.* = node.getParent().?.*; // Just rotated
                     }
                     parent.*.setColor(Black);
                     grandpa.setColor(Red);
@@ -238,9 +238,9 @@ pub const Tree = struct {
                     node = grandpa;
                 } else {
                     if (node == parent.*.left) {
-                        rotateRight(parent.*, tree);
-                        node = parent.*;
-                        parent.* = node.getParent().?; // Just rotated
+                        rotateRight(parent, tree);
+                        node = parent;
+                        parent.* = node.getParent().?.*; // Just rotated
                     }
                     parent.*.setColor(Black);
                     grandpa.setColor(Red);
@@ -420,7 +420,7 @@ pub const Tree = struct {
         new.* = old.*;
     }
 
-    pub fn init(f: fn (*Node, *Node, *Tree) Order) Tree {
+    pub fn init(comptime f: fn (*Node, *Node, *Tree) Order) Tree {
         return Tree{
             .root = null,
             .compareFn = f,
